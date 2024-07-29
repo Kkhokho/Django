@@ -28,8 +28,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 LANGUAGES = [
-    ('en', _('English')),
-    ('vi', _('Tiếng Việt')),
+    ('en', ('English')),
+    ('vi', ('Tiếng Việt')),
 ]
 
 # Application definition
