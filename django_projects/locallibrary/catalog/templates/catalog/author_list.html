@@ -1,0 +1,20 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Author List</h1>
+  {% if author_list %}
+  <ul>
+    {% for author in author_list %}
+    <li>
+      <a href="{{ author.get_absolute_url }}">{{ author }}</a>
+      {% if perms.catalog.change_bookinstance %}
+        <a href="{% url 'authors-update' pk=author.pk %}" class="text-warning">Update</a>
+        <a href="{% url 'authors-delete' pk=author.pk %}" class="text-danger">Delete</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>There are author in the library.</p>
+  {% endif %}
+{% endblock %}

@@ -1,58 +1,73 @@
 from django.shortcuts import render
-from django.views import generic
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-# Create your views here.
-from catalog.models import Book, Author, BookInstance, Genre
-from typing import Any
-from django.shortcuts import render
 from catalog.models import Book, Author, BookInstance, Genre
 from django.views import View, generic
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponseRedirect
 from django.views.decorators.http import require_POST
-import datetime 
-from django.contrib.auth.decorators import login_required, permission_required
-from django.shortcuts import get_object_or_404
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from catalog.forms import RenewBookForm
+import datetime
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
+
 def index(request):
-    """View function for home page of site."""
-    # Generate counts of some of the main objects
     num_books = Book.objects.all().count()
     num_instances = BookInstance.objects.all().count()
     num_instances_available = BookInstance.objects.filter(status__exact='a').count()
-    # The 'all()' is implied by default.
     num_authors = Author.objects.count()
-    num_authors = Author.objects.count() # The 'all()' is implied by default.# Number of visits to this view, as counted in the session variable.
+
     num_visits = request.session.get('num_visits', 1)
     request.session['num_visits'] = num_visits + 1
+
     context = {
         'num_books': num_books,
         'num_instances': num_instances,
         'num_instances_available': num_instances_available,
         'num_authors': num_authors,
-        'num_visits': num_visits
+        'num_visits': num_visits,
     }
+
     return render(request, 'index.html', context=context)
+
 class BookListView(generic.ListView):
     model = Book
-    context_object_name = 'my_book_list'
+    context_object_name = 'book_list'
     queryset = Book.objects.filter(title__icontains='')[:5]
     template_name = 'catalog/book_list.html'
     paginate_by = 1
+
     def get_context_data(self, **kwargs):
         context = super(BookListView, self).get_context_data(**kwargs)
         return context
+    
 class BookDetailView(generic.DetailView):
     model = Book
 
     def book_detail_view(request, primary_key):
         book = get_object_or_404(Book, pk=primary_key)
         return render(request, 'catalog/book_detail.html', context={'book': book})
+    
+class AuthorListView(generic.ListView):
+    model = Author
+    context_object_name = 'author_list'
+    queryset = Author.objects.all()
+    template_name = 'catalog/author_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(AuthorListView, self).get_context_data(**kwargs)
+        return context
+
+class AuthorDetailView(generic.DetailView):
+    model = Author
+    template_name = 'catalog/author_detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(AuthorDetailView, self).get_context_data(**kwargs)
+        context['books'] = Book.objects.filter(author=self.object)
+        return context
+    
+
 class LoanedBooksByUserListView(LoginRequiredMixin, PermissionRequiredMixin, generic.ListView):
     model = BookInstance
     login_url = '/accounts/login/'
@@ -67,6 +82,22 @@ class LoanedBooksByUserListView(LoginRequiredMixin, PermissionRequiredMixin, gen
     def get_context_data(self, **kwargs):
         context = super(LoanedBooksByUserListView, self).get_context_data(**kwargs)
         return context
+    
+class LoanedBooksAllListView(LoginRequiredMixin, PermissionRequiredMixin, generic.ListView):
+    model = BookInstance
+    login_url = '/accounts/login/'
+    redirect_field_name = 'next'
+    context_object_name = 'bookinstance_list'
+    template_name = 'catalog/bookinstance_list_borrowed_all.html'
+    permission_required = 'catalog.catalog.change_bookinstance'
+
+    def get_queryset(self):
+        return BookInstance.objects.filter(status__exact='o').order_by('due_back')
+
+    def get_context_data(self, **kwargs):
+        context = super(LoanedBooksAllListView, self).get_context_data(**kwargs)
+        return context
+
 @login_required
 @permission_required('catalog.can_mark_returned')
 @require_POST
@@ -105,3 +136,16 @@ def renew_book_librarian(request, pk):
     }
 
     return render(request, 'catalog/book_renew_librarian.html', context)
+
+class AuthorCreate(CreateView):
+    model = Author
+    fields = ['first_name', 'last_name', 'date_of_birth', 'date_of_death']
+    initial = {'date_of_death': '11/06/2021'}
+
+class AuthorUpdate(UpdateView):
+    model = Author
+    fields = '__all__'
+
+class AuthorDelete(DeleteView):
+    model = Author
+    success_url = reverse_lazy('authors')
