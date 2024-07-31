@@ -13,6 +13,12 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.http import HttpResponseForbidden
 from django.views.decorators.http import require_POST
+import datetime 
+from django.contrib.auth.decorators import login_required, permission_required
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from catalog.forms import RenewBookForm
 def index(request):
     """View function for home page of site."""
     # Generate counts of some of the main objects
@@ -35,14 +41,18 @@ def index(request):
 class BookListView(generic.ListView):
     model = Book
     context_object_name = 'my_book_list'
-    queryset = Book.objects.filter(title__icontains='war')[:5]
-    template_name = 'books/my_arbitrary_template_name_list.html'
+    queryset = Book.objects.filter(title__icontains='')[:5]
+    template_name = 'catalog/book_list.html'
+    paginate_by = 1
+    def get_context_data(self, **kwargs):
+        context = super(BookListView, self).get_context_data(**kwargs)
+        return context
 class BookDetailView(generic.DetailView):
     model = Book
 
-def book_detail_view(request, primary_key):
-    book = get_object_or_404(Book, pk=primary_key)
-    return render(request, 'catalog/book_detail.html', context={'book': book})
+    def book_detail_view(request, primary_key):
+        book = get_object_or_404(Book, pk=primary_key)
+        return render(request, 'catalog/book_detail.html', context={'book': book})
 class LoanedBooksByUserListView(LoginRequiredMixin, PermissionRequiredMixin, generic.ListView):
     model = BookInstance
     login_url = '/accounts/login/'
@@ -71,3 +81,27 @@ def return_book(request, pk):
     book_instance.save()
     
     return redirect('my-borrowed')
+
+@login_required
+@permission_required('catalog.can_mark_returned')
+def renew_book_librarian(request, pk):
+    book_instance = get_object_or_404(BookInstance, pk=pk)
+    
+    if request.method == 'POST':
+        form = RenewBookForm(request.POST)
+        
+        if form.is_valid():
+            book_instance.due_back = form.cleaned_data['renewal_date']
+            book_instance.save()
+            return HttpResponseRedirect(reverse('all-borrowed'))
+    
+        else:
+            proposed_renewal_date = datetime.date.today() + datetime.timedelta(weeks=3)
+            form = RenewBookForm(initial={'renewal_date': proposed_renewal_date})
+
+    context = {
+        'form': form,
+        'book_instance': book_instance,
+    }
+
+    return render(request, 'catalog/book_renew_librarian.html', context)
