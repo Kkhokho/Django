@@ -53,6 +53,7 @@ class AuthorListView(generic.ListView):
     context_object_name = 'author_list'
     queryset = Author.objects.all()
     template_name = 'catalog/author_list.html'
+    paginate_by = 10
 
     def get_context_data(self, **kwargs):
         context = super(AuthorListView, self).get_context_data(**kwargs)
