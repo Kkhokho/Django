@@ -2,6 +2,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _l
 import uuid
+from .constants import LOAN_STATUS 
 
 class Genre(models.Model):
     name = models.CharField(max_length=200, help_text=_l('Nhập thể loại sách (ví dụ: Khoa học viễn tưởng)'))
@@ -30,12 +31,6 @@ class BookInstance(models.Model):
     imprint = models.CharField(max_length=200)
     due_back = models.DateField(null=True, blank=True)
 
-    LOAN_STATUS = (
-        ('m', _l('Bảo trì')),
-        ('o', _l('Đang mượn')),
-        ('a', _l('Có sẵn')),
-        ('r', _l('Đã đặt trước'))
-    )
 
     status = models.CharField(
         max_length=1,
